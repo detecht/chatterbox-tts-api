@@ -45,8 +45,11 @@ RUN uv pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-ur
 # Install base dependencies first
 RUN uv pip install setuptools fastapi uvicorn[standard] python-dotenv python-multipart requests psutil pydub sse-starlette
 
-# Install chatterbox-tts — with the breaking fix (pkuseg package exclusion) 
-RUN uv pip install git+https://github.com/resemble-ai/chatterbox.git
+# Copy chatterbox folder for local installation
+COPY chatterbox/ ./chatterbox/
+
+# Install chatterbox-tts from local folder
+RUN uv pip install ./chatterbox
 
 # Copy application code
 COPY app/ ./app/

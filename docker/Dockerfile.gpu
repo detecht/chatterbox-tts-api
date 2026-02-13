@@ -36,10 +36,13 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Copy requirements and install other dependencies
 COPY requirements.txt ./
+# Copy chatterbox folder for local installation
+COPY chatterbox/ ./chatterbox/
+
 RUN pip install --no-cache-dir fastapi uvicorn[standard] python-dotenv python-multipart requests psutil pydub sse-starlette
 
-# Install chatterbox-tts — with the breaking fix (pkuseg package exclusion) 
-RUN pip install git+https://github.com/resemble-ai/chatterbox.git
+# Install chatterbox-tts from local folder
+RUN pip install ./chatterbox
 
 # Copy application code
 COPY app/ ./app/

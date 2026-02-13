@@ -254,9 +254,17 @@ async def generate_speech_internal(
                 if is_multilingual():
                     generate_kwargs["language_id"] = language_id
                 
+                # Determine autocast settings
+                autocast_enabled = torch.cuda.is_available() and Config.MODEL_DTYPE == 'bfloat16'
+                autocast_dtype = torch.bfloat16 if Config.MODEL_DTYPE == 'bfloat16' else torch.float32
+
+                def generate_with_autocast():
+                    with torch.cuda.amp.autocast(enabled=autocast_enabled, dtype=autocast_dtype):
+                        return model.generate(**generate_kwargs)
+
                 audio_tensor = await loop.run_in_executor(
                     None,
-                    lambda: model.generate(**generate_kwargs)
+                    generate_with_autocast
                 )
                 
                 # Ensure tensor is on the correct device and detached
@@ -484,16 +492,24 @@ async def generate_speech_streaming(
             # Use torch.no_grad() to prevent gradient accumulation
             with torch.no_grad():
                 # Run TTS generation in executor to avoid blocking
+                # Determine autocast settings
+                autocast_enabled = torch.cuda.is_available() and Config.MODEL_DTYPE == 'bfloat16'
+                autocast_dtype = torch.bfloat16 if Config.MODEL_DTYPE == 'bfloat16' else torch.float32
+
+                def generate_with_autocast():
+                    with torch.cuda.amp.autocast(enabled=autocast_enabled, dtype=autocast_dtype):
+                        return model.generate(
+                            text=chunk,
+                            audio_prompt_path=voice_sample_path,
+                            exaggeration=exaggeration,
+                            cfg_weight=cfg_weight,
+                            temperature=temperature,
+                            **({'language_id': language_id} if is_multilingual() else {})
+                        )
+
                 audio_tensor = await loop.run_in_executor(
                     None,
-                    lambda: model.generate(
-                        text=chunk,
-                        audio_prompt_path=voice_sample_path,
-                        exaggeration=exaggeration,
-                        cfg_weight=cfg_weight,
-                        temperature=temperature,
-                        **({'language_id': language_id} if is_multilingual() else {})
-                    )
+                    generate_with_autocast
                 )
                 
                 # Ensure tensor is on CPU for streaming
@@ -687,16 +703,24 @@ async def generate_speech_sse(
             # Use torch.no_grad() to prevent gradient accumulation
             with torch.no_grad():
                 # Run TTS generation in executor to avoid blocking
+                # Determine autocast settings
+                autocast_enabled = torch.cuda.is_available() and Config.MODEL_DTYPE == 'bfloat16'
+                autocast_dtype = torch.bfloat16 if Config.MODEL_DTYPE == 'bfloat16' else torch.float32
+
+                def generate_with_autocast():
+                    with torch.cuda.amp.autocast(enabled=autocast_enabled, dtype=autocast_dtype):
+                        return model.generate(
+                            text=chunk,
+                            audio_prompt_path=voice_sample_path,
+                            exaggeration=exaggeration,
+                            cfg_weight=cfg_weight,
+                            temperature=temperature,
+                            **({'language_id': language_id} if is_multilingual() else {})
+                        )
+
                 audio_tensor = await loop.run_in_executor(
                     None,
-                    lambda: model.generate(
-                        text=chunk,
-                        audio_prompt_path=voice_sample_path,
-                        exaggeration=exaggeration,
-                        cfg_weight=cfg_weight,
-                        temperature=temperature,
-                        **({'language_id': language_id} if is_multilingual() else {})
-                    )
+                    generate_with_autocast
                 )
                 
                 # Ensure tensor is on CPU for processing

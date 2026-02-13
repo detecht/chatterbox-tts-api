@@ -4,6 +4,7 @@ TTS model initialization and management
 
 import os
 import asyncio
+import torch
 from enum import Enum
 from typing import Optional, Dict, Any
 from chatterbox.tts import ChatterboxTTS
@@ -56,7 +57,6 @@ async def initialize_model():
         _initialization_progress = "Configuring device compatibility..."
         # Patch torch.load for CPU compatibility if needed
         if _device == 'cpu':
-            import torch
             original_load = torch.load
             original_load_file = None
             
@@ -104,6 +104,18 @@ async def initialize_model():
             _is_multilingual = False
             _supported_languages = {"en": "English"}  # Standard model only supports English
             print(f"✓ Standard model initialized (English only)")
+        
+        # Explicitly cast model to the configured dtype (e.g., bfloat16)
+        if _device == 'cuda' and Config.MODEL_DTYPE == 'bfloat16':
+            print(f"Casting model components to bfloat16...")
+            _initialization_progress = "Casting model to bfloat16..."
+            if hasattr(_model, 't3'):
+                _model.t3.to(dtype=torch.bfloat16)
+            if hasattr(_model, 's3gen'):
+                _model.s3gen.to(dtype=torch.bfloat16)
+            if hasattr(_model, 've'):
+                _model.ve.to(dtype=torch.bfloat16)
+            print(f"✓ Model components cast to bfloat16")
         
         _initialization_state = InitializationState.READY.value
         _initialization_progress = "Model ready"
