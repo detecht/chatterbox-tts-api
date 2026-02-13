@@ -198,10 +198,13 @@ class ChatterboxTTS:
         ve_embed = torch.from_numpy(self.ve.embeds_from_wavs([ref_16k_wav], sample_rate=S3_SR))
         ve_embed = ve_embed.mean(axis=0, keepdim=True).to(self.device)
 
+        # Get dtype from T3 model
+        t3_dtype = next(self.t3.parameters()).dtype
+
         t3_cond = T3Cond(
-            speaker_emb=ve_embed,
+            speaker_emb=ve_embed.to(dtype=t3_dtype),
             cond_prompt_speech_tokens=t3_cond_prompt_tokens,
-            emotion_adv=exaggeration * torch.ones(1, 1, 1),
+            emotion_adv=exaggeration * torch.ones(1, 1, 1, dtype=t3_dtype, device=self.device),
         ).to(device=self.device)
         self.conds = Conditionals(t3_cond, s3gen_ref_dict)
 
@@ -221,13 +224,16 @@ class ChatterboxTTS:
         else:
             assert self.conds is not None, "Please `prepare_conditionals` first or specify `audio_prompt_path`"
 
+        # Get dtype from T3 model
+        t3_dtype = next(self.t3.parameters()).dtype
+
         # Update exaggeration if needed
         if exaggeration != self.conds.t3.emotion_adv[0, 0, 0]:
             _cond: T3Cond = self.conds.t3
             self.conds.t3 = T3Cond(
                 speaker_emb=_cond.speaker_emb,
                 cond_prompt_speech_tokens=_cond.cond_prompt_speech_tokens,
-                emotion_adv=exaggeration * torch.ones(1, 1, 1),
+                emotion_adv=exaggeration * torch.ones(1, 1, 1, dtype=t3_dtype, device=self.device),
             ).to(device=self.device)
 
         # Norm and tokenize text

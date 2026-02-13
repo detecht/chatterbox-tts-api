@@ -261,7 +261,7 @@ class S3Token2Wav(S3Token2Mel):
         n_trim = S3GEN_SR // 50  # 20ms = half of a frame
         trim_fade = torch.zeros(2 * n_trim)
         trim_fade[n_trim:] = (torch.cos(torch.linspace(torch.pi, 0, n_trim)) + 1) / 2
-        self.register_buffer("trim_fade", trim_fade, persistent=False) # (buffers get automatic device casting)
+        self.register_buffer("trim_fade", trim_fade.to(self.dtype), persistent=False) # (buffers get automatic device casting)
         self.estimator_dtype = "fp32"
 
     def forward(
